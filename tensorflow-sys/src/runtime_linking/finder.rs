@@ -6,6 +6,7 @@ use std::env;
 /// - the environment's library path (e.g. `LD_LIBRARY_PATH` in Linux)
 /// - Tensorflow's default installation paths for the OS
 pub fn find(library_name: &str) -> Option<PathBuf> {
+    println!("BJONES inside find..");
     let file = format!(
         "{}{}{}",
         env::consts::DLL_PREFIX,
