@@ -14,8 +14,6 @@ macro_rules! link {
         use std::sync::RwLock;
 
         // Wrap the loaded functions.
-	//BJONES removing Debug from this file fixes the issue. Do we need Debug?
-        #[derive(Debug)]
         pub(crate) struct SharedLibrary {
             library: libloading::Library,
             path: PathBuf,
@@ -48,8 +46,7 @@ macro_rules! link {
         }
 
         // The set of functions loaded dynamically.
-	//BJONES removing Debug from this file fixes the issue. Do we need Debug?
-        #[derive(Debug, Default)]
+        #[derive(Default)]
         pub(crate) struct Functions {
             $(
                 pub $name: Option<unsafe extern fn($($pname: $pty), *) $(-> $ret)*>,

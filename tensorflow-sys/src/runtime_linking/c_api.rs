@@ -867,12 +867,6 @@ extern "C" {
         dy: *mut TF_Output,
     );
 }
-// #[derive(Debug)]
-// BJONES This results in the error -->
-// `unsafe extern "C" fn(*const TF_Graph, *const i8, u8, i32, *const *const TF_Operation, i32, 
-//			  *const TF_Output, i32, *const TF_Output, *const *const i8, *const TF_FunctionOptions, 
-//  			  *const i8, *mut TF_Status) -> *mut TF_Function` cannot be formatted using `{:?}` 
-//because it doesn't implement `std::fmt::Debug`
 extern "C" {
     pub fn TF_GraphToFunction(
         fn_body: *const TF_Graph,
@@ -905,9 +899,9 @@ extern "C" {
         ncontrol_outputs: ::std::os::raw::c_int,
         control_outputs: *const *const TF_Operation,
         control_output_names: *const *const ::std::os::raw::c_char,
-        // opts: *const TF_FunctionOptions,
+        opts: *const TF_FunctionOptions,
         description: *const ::std::os::raw::c_char,
-        // status: *mut TF_Status,
+        status: *mut TF_Status,
     ) -> *mut TF_Function;
 }
 extern "C" {
