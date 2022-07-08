@@ -1,4 +1,5 @@
 import tensorflow as tf
+from neural_compressor.experimental import Graph_Optimization
 
 # default input shape 224x224x3
 model = tf.keras.applications.MobileNetV3Small(
@@ -8,6 +9,12 @@ model = tf.keras.applications.MobileNetV3Small(
 # save the model
 directory = "examples/mobilenetv3"
 model.save(directory, save_format="tf")
+graph_opt = Graph_Optimization()
+graph_opt.model = directory   # the path to saved_model dir
+# output = graph_opt() output.save('examples/mobilenetv3/optimized_model')
+graph_opt.output = 'examples/mobilenetv3/optimized_model'
+optimized_model = graph_opt()
+model.save('examples/mobilenetv3/optimized_model')
 
 ######################################################
 # Check the prediction results for the sample image. #
