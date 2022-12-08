@@ -20,7 +20,7 @@ use libc::size_t;
 use libc::{c_int, c_uint};
 #[cfg(feature = "ndarray")]
 use ndarray::{Array, ArrayBase, Data, Dim, Dimension, IxDynImpl};
-use num_complex::Complex;
+// use num_complex::Complex;
 use protobuf::ProtobufEnum;
 use std::alloc;
 use std::borrow::Borrow;
@@ -49,9 +49,10 @@ use std::process;
 use std::ptr;
 use std::slice;
 use std::str::Utf8Error;
-#[cfg(feature = "default")]
-use tensorflow_sys as tf;
-#[cfg(feature = "tensorflow_runtime_linking")]
+// BJONES
+// #[cfg(feature = "default")]
+// use tensorflow_sys as tf;
+// #[cfg(feature = "tensorflow_runtime_linking")]
 use tensorflow_sys_runtime as tf;
 
 ////////////////////////
@@ -195,7 +196,8 @@ pub use crate::session::*;
 
 pub mod expr;
 
-pub mod io;
+//BJONES
+// pub mod io;
 
 pub mod ops;
 
@@ -356,8 +358,9 @@ c_enum!("Type of a single tensor element.", TF_DataType, DataType {
   /// String.
   value String = 7,
 
+  // BJONES REMOVED
   /// Complex number composed of two 32-bit floats.
-  value Complex64 = 8,
+//   value Complex64 = 8,
 
   /// 64-bit signed integer.
   value Int64 = 9,
@@ -390,8 +393,11 @@ c_enum!("Type of a single tensor element.", TF_DataType, DataType {
   /// 16-bit unsigned integer.
   value UInt16 = 17,
 
+  //BJONES REMOVED
   /// Complex number composed of two 64-bit floats.
-  value Complex128 = 18,
+//   value Complex128 = 18,
+
+
 
   /// 16-bit floating point.
   value Half = 19,
@@ -737,18 +743,19 @@ tensor_type!(u32, UInt32, 0, 1);
 tensor_type!(u64, UInt64, 0, 1);
 tensor_type!(i16, Int16, 0, 1);
 tensor_type!(i8, Int8, 0, 1);
-tensor_type!(
-    Complex<f32>,
-    Complex64,
-    Complex::new(0.0, 0.0),
-    Complex::new(1.0, 0.0)
-);
-tensor_type!(
-    Complex<f64>,
-    Complex128,
-    Complex::new(0.0, 0.0),
-    Complex::new(1.0, 0.0)
-);
+// BJONES REMOVED
+// tensor_type!(
+//     Complex<f32>,
+//     Complex64,
+//     Complex::new(0.0, 0.0),
+//     Complex::new(1.0, 0.0)
+// );
+// tensor_type!(
+//     Complex<f64>,
+//     Complex128,
+//     Complex::new(0.0, 0.0),
+//     Complex::new(1.0, 0.0)
+// );
 tensor_type!(i64, Int64, 0, 1);
 tensor_type!(bool, Bool, false, true);
 
