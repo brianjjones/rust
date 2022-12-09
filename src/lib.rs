@@ -209,10 +209,11 @@ pub mod train;
 mod saved_model;
 pub use saved_model::*;
 
-#[cfg(feature = "eager")]
-pub mod eager;
+//BJONES
+// #[cfg(feature = "eager")]
+// pub mod eager;
 
-#[cfg(feature = "tensorflow_runtime_linking")]
+// #[cfg(feature = "tensorflow_runtime_linking")]
 pub use tf::library;
 
 ////////////////////////
