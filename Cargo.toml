@@ -1,6 +1,6 @@
 [package]
-name = "tensorflow"
-version = "0.19.1"
+name = "tf_runtime_bindings"
+version = "0.1.0"
 authors = ["Brian Jones <brian.j.jones@intel.com>"]
 description = "Runtime Rust language bindings for TensorFlow."
 license = "Apache-2.0"
@@ -11,42 +11,14 @@ readme = "README.md"
 edition = "2018"
 rust-version = "1.59.0"
 
-# [lib]
-# # We want to run doctests, but they're broken by https://github.com/rust-lang/cargo/issues/8531.
-# doctest = false
-
-# Prevent downloading or building TensorFlow when building docs on docs.rs.
-# [package.metadata.docs.rs]
-# features = ["private-docs-rs", "tensorflow_unstable", "ndarray", "eager"]
-
 [dependencies]
 libc = "0.2.132"
-# num-complex = { version = "0.4.2", default-features = false }
 tensorflow-internal-macros = { version = "=0.0.3", path = "tensorflow-internal-macros" }
-# tensorflow-sys = { version = "0.22.1", path = "tensorflow-sys", optional = true }
 tensorflow-sys-runtime = { version = "0.1.0", path = "tensorflow-sys-runtime"}
-# byteorder = "1.4.3"
-# crc = "3.0.0"
 half = "2.1.0"
 # This is used internally but not intended to be exposed through the API.
 protobuf = "=2.27.1"
-# Enables conversions between ndarray::Array objects and tensorflow::Tensor
-# ndarray = { version = "0.15.6", optional = true }
 rustversion = "1.0.9"
-
-# [dev-dependencies]
-# rand = "0.8.5"
-# serial_test = "0.9.0"
-
-# [features]
-# default = ["tensorflow-sys"]
-# tensorflow_gpu = ["tensorflow-sys/tensorflow_gpu"]
-# tensorflow_unstable = []
-# tensorflow_runtime_linking = ["tensorflow-sys-runtime"]
-# eager = ["tensorflow-sys/eager"]
-# # This is for testing purposes; users should not use this.
-# examples_system_alloc = ["tensorflow-sys/examples_system_alloc"]
-# private-docs-rs = ["tensorflow-sys/private-docs-rs"] # DO NOT RELY ON THIS
 
 [workspace]
 

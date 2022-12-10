@@ -18,9 +18,6 @@
 use half::f16;
 use libc::size_t;
 use libc::{c_int, c_uint};
-#[cfg(feature = "ndarray")]
-use ndarray::{Array, ArrayBase, Data, Dim, Dimension, IxDynImpl};
-// use num_complex::Complex;
 use protobuf::ProtobufEnum;
 use std::alloc;
 use std::borrow::Borrow;
@@ -49,10 +46,6 @@ use std::process;
 use std::ptr;
 use std::slice;
 use std::str::Utf8Error;
-// BJONES
-// #[cfg(feature = "default")]
-// use tensorflow_sys as tf;
-// #[cfg(feature = "tensorflow_runtime_linking")]
 use tensorflow_sys_runtime as tf;
 
 ////////////////////////
@@ -196,24 +189,14 @@ pub use crate::session::*;
 
 pub mod expr;
 
-//BJONES
-// pub mod io;
-
 pub mod ops;
 
 mod variable;
 pub use crate::variable::*;
 
-pub mod train;
-
 mod saved_model;
 pub use saved_model::*;
 
-//BJONES
-// #[cfg(feature = "eager")]
-// pub mod eager;
-
-// #[cfg(feature = "tensorflow_runtime_linking")]
 pub use tf::library;
 
 ////////////////////////
@@ -359,10 +342,6 @@ c_enum!("Type of a single tensor element.", TF_DataType, DataType {
   /// String.
   value String = 7,
 
-  // BJONES REMOVED
-  /// Complex number composed of two 32-bit floats.
-//   value Complex64 = 8,
-
   /// 64-bit signed integer.
   value Int64 = 9,
 
@@ -393,12 +372,6 @@ c_enum!("Type of a single tensor element.", TF_DataType, DataType {
 
   /// 16-bit unsigned integer.
   value UInt16 = 17,
-
-  //BJONES REMOVED
-  /// Complex number composed of two 64-bit floats.
-//   value Complex128 = 18,
-
-
 
   /// 16-bit floating point.
   value Half = 19,
@@ -744,19 +717,6 @@ tensor_type!(u32, UInt32, 0, 1);
 tensor_type!(u64, UInt64, 0, 1);
 tensor_type!(i16, Int16, 0, 1);
 tensor_type!(i8, Int8, 0, 1);
-// BJONES REMOVED
-// tensor_type!(
-//     Complex<f32>,
-//     Complex64,
-//     Complex::new(0.0, 0.0),
-//     Complex::new(1.0, 0.0)
-// );
-// tensor_type!(
-//     Complex<f64>,
-//     Complex128,
-//     Complex::new(0.0, 0.0),
-//     Complex::new(1.0, 0.0)
-// );
 tensor_type!(i64, Int64, 0, 1);
 tensor_type!(bool, Bool, false, true);
 
@@ -1578,55 +1538,6 @@ impl<T: TensorType, const N: usize> From<&[T; N]> for Tensor<T> {
     }
 }
 
-#[cfg(feature = "ndarray")]
-/// Convert any &ndarray::ArrayBase type into a tensorflow::Tensor
-impl<T, S, D> From<&ArrayBase<S, D>> for Tensor<T>
-where
-    T: TensorType,
-    S: Data<Elem = T>,
-    D: Dimension,
-{
-    fn from(value: &ArrayBase<S, D>) -> Self {
-        let dims: Vec<u64> = value.shape().iter().map(|x| *x as u64).collect();
-        let mut tensor: Tensor<T> = Self::new(&dims);
-        for (e, v) in tensor.iter_mut().zip(value.iter()) {
-            e.clone_from(v);
-        }
-        tensor
-    }
-}
-
-#[cfg(feature = "ndarray")]
-/// Convert any ndarray::ArrayBase type into a tensorflow::Tensor
-///
-/// Delegates to the From<&ArrayBase> implementation.
-impl<T, S, D> From<ArrayBase<S, D>> for Tensor<T>
-where
-    T: TensorType,
-    S: Data<Elem = T>,
-    D: Dimension,
-{
-    fn from(value: ArrayBase<S, D>) -> Self {
-        Tensor::from(&value)
-    }
-}
-
-#[cfg(feature = "ndarray")]
-/// Convert a tensorflow::Tensor into a dynamic dimensional ndarray::ArrayBase that owns its data
-impl<T> From<Tensor<T>> for Array<T, Dim<IxDynImpl>>
-where
-    T: TensorType,
-{
-    fn from(value: Tensor<T>) -> Self {
-        let dims: Vec<usize> = value.dims.iter().map(|x| *x as usize).collect();
-        let dim = Dim(dims);
-        let data: Vec<T> = value.iter().map(|x| x.clone()).collect();
-        // We can safely unwrap this because we know that `data` will have the
-        // correct number of elements to conform to `dim`.
-        Array::from_shape_vec(dim, data).unwrap()
-    }
-}
-
 impl<T: TensorType + PartialEq> PartialEq for Tensor<T> {
     fn eq(&self, other: &Tensor<T>) -> bool {
         self.dims == other.dims && self.deref() == other.deref()
@@ -2284,447 +2195,3 @@ mod while_loop;
 pub use crate::while_loop::*;
 
 ////////////////////////
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_session() -> (Session, Graph) {
-        let graph = Graph::new();
-        let options = SessionOptions::new();
-        match Session::new(&options, &graph) {
-            Ok(session) => (session, graph),
-            Err(status) => panic!("Creating session failed with status: {}", status),
-        }
-    }
-
-    #[test]
-    fn smoke() {
-        create_session();
-    }
-
-    #[test]
-    fn test_close() {
-        let (mut session, _) = create_session();
-        let status = session.close();
-        assert!(status.is_ok());
-    }
-
-    #[test]
-    fn test_tensor() {
-        let mut tensor = <Tensor<f32>>::new(&[2, 3]);
-        assert_eq!(tensor.len(), 6);
-        tensor[0] = 1.0;
-    }
-
-    #[test]
-    fn test_tensor_native_type_zero() {
-        let tensor = <Tensor<i32>>::new(&[1000]);
-
-        // Checking against null-initialized slice/vector makes
-        // the unit test succeed often on repeated runs.
-        for v in tensor.as_ref() {
-            assert_eq!(0, *v);
-        }
-    }
-
-    #[test]
-    fn test_set_target() {
-        let mut options = SessionOptions::new();
-        options.set_target("local").unwrap();
-    }
-
-    #[test]
-    fn test_set_config() {
-        let mut options = SessionOptions::new();
-        // An empty array is a valid proto, since all fields are optional.
-        options.set_config(&vec![]).unwrap();
-    }
-
-    #[test]
-    fn test_run() {
-        // Graph is just y = 2 * x
-        let graph_proto = vec![
-            0x0a, 0x2a, 0x0a, 0x01, 0x78, 0x12, 0x0b, 0x50, 0x6c, 0x61, 0x63, 0x65, 0x68, 0x6f,
-            0x6c, 0x64, 0x65, 0x72, 0x2a, 0x0b, 0x0a, 0x05, 0x64, 0x74, 0x79, 0x70, 0x65, 0x12,
-            0x02, 0x30, 0x01, 0x2a, 0x0b, 0x0a, 0x05, 0x73, 0x68, 0x61, 0x70, 0x65, 0x12, 0x02,
-            0x3a, 0x00, 0x0a, 0x30, 0x0a, 0x03, 0x79, 0x2f, 0x79, 0x12, 0x05, 0x43, 0x6f, 0x6e,
-            0x73, 0x74, 0x2a, 0x0b, 0x0a, 0x05, 0x64, 0x74, 0x79, 0x70, 0x65, 0x12, 0x02, 0x30,
-            0x01, 0x2a, 0x15, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x12, 0x0c, 0x42, 0x0a,
-            0x08, 0x01, 0x12, 0x00, 0x2a, 0x04, 0x00, 0x00, 0x00, 0x40, 0x0a, 0x19, 0x0a, 0x01,
-            0x79, 0x12, 0x03, 0x4d, 0x75, 0x6c, 0x1a, 0x01, 0x78, 0x1a, 0x03, 0x79, 0x2f, 0x79,
-            0x2a, 0x07, 0x0a, 0x01, 0x54, 0x12, 0x02, 0x30, 0x01,
-        ];
-        let (session, mut graph) = create_session();
-        let opts = ImportGraphDefOptions::new();
-        let status = graph.import_graph_def(&graph_proto, &opts);
-        assert!(status.is_ok());
-        let mut x = <Tensor<f32>>::new(&[2]);
-        x[0] = 2.0;
-        x[1] = 3.0;
-        let mut step = SessionRunArgs::new();
-        let x_op = graph.operation_by_name_required("x").unwrap();
-        step.add_feed(&x_op, 0, &x);
-        let y_op = graph.operation_by_name_required("y").unwrap();
-        let output_ix = step.request_fetch(&y_op, 0);
-        session.run(&mut step).unwrap();
-        let output_tensor = step.fetch::<f32>(output_ix).unwrap();
-        assert_eq!(output_tensor.len(), 2);
-        assert_eq!(output_tensor[0], 4.0);
-        assert_eq!(output_tensor[1], 6.0);
-    }
-
-    #[test]
-    fn test_bfloat16() {
-        let data = [-1.0f32, 0.0, 1.0, 2.5];
-        for i in 0..data.len() {
-            let x = data[i];
-            let bfx = BFloat16::from(x);
-            assert_eq!(<BFloat16 as Into<f32>>::into(bfx), x);
-            assert_eq!(bfx.partial_cmp(&bfx), Some(Ordering::Equal));
-            assert!(bfx.eq(&bfx));
-            for j in 0..i {
-                let y = data[j];
-                let bfy = BFloat16::from(y);
-                assert_eq!(bfx.partial_cmp(&bfy), Some(Ordering::Greater));
-                assert_eq!(bfy.partial_cmp(&bfx), Some(Ordering::Less));
-                assert!(!bfx.eq(&bfy));
-            }
-        }
-        assert_eq!(<BFloat16 as Into<f32>>::into(BFloat16::default()), 0.0f32);
-        assert_eq!(BFloat16::from(1.5f32).to_string(), "1.5");
-    }
-
-    #[test]
-    fn test_f16() {
-        let data: Vec<f16> = vec![-1.0f32, 0.0, 1.0, 2.5]
-            .into_iter()
-            .map(|x| f16::from_f32(x))
-            .collect();
-        let tensor = <Tensor<f16>>::new(&[2, 2]).with_values(&data).unwrap();
-        assert_eq!(&tensor[..], &data[..]);
-    }
-
-    #[test]
-    fn test_strings() {
-        let mut g = Graph::new();
-        let x_op = {
-            let mut nd = g.new_operation("Placeholder", "x").unwrap();
-            nd.set_attr_type("dtype", DataType::String).unwrap();
-            nd.set_attr_shape("shape", &Shape(Some(vec![]))).unwrap();
-            nd.finish().unwrap()
-        };
-        let y_op = {
-            let mut nd = g.new_operation("EncodeBase64", "y").unwrap();
-            nd.add_input(x_op.clone());
-            nd.finish().unwrap()
-        };
-        let options = SessionOptions::new();
-        let session = Session::new(&options, &g).unwrap();
-        let mut x = <Tensor<String>>::new(&[2]);
-        x[0] = "This is a long string.".to_string();
-        x[1] = "This is another long string.".to_string();
-        let mut step = SessionRunArgs::new();
-        step.add_feed(&x_op, 0, &x);
-        let output_ix = step.request_fetch(&y_op, 0);
-        session.run(&mut step).unwrap();
-        let output_tensor = step.fetch::<String>(output_ix).unwrap();
-        assert_eq!(output_tensor.len(), 2);
-        assert_eq!(output_tensor[0], "VGhpcyBpcyBhIGxvbmcgc3RyaW5nLg");
-        assert_eq!(output_tensor[1], "VGhpcyBpcyBhbm90aGVyIGxvbmcgc3RyaW5nLg");
-    }
-
-    #[test]
-    fn tensor_clone() {
-        let x = Tensor::<i32>::new(&[3]).with_values(&[1, 2, 3]).unwrap();
-        let clone = x.clone();
-        assert_eq!(x, clone);
-    }
-
-    #[test]
-    fn tensor_eq() {
-        let a = Tensor::<i32>::new(&[3]).with_values(&[1, 2, 3]).unwrap();
-        let b = Tensor::<i32>::from(&[1, 2, 3][..]);
-        let c = Tensor::<i32>::new(&[3]).with_values(&[1, 2, 4]).unwrap();
-        let d = Tensor::<i32>::new(&[3, 1]).with_values(&[1, 2, 3]).unwrap();
-        assert_eq!(a, b);
-        assert_ne!(a, c);
-        assert_ne!(a, d);
-    }
-
-    #[rustversion::since(1.51)]
-    #[test]
-    fn tensor_from_array() {
-        let x = Tensor::<i32>::from([1, 2, 3]);
-        assert_eq!(x.as_ref(), &[1, 2, 3]);
-    }
-
-    #[rustversion::since(1.51)]
-    #[test]
-    fn tensor_from_array_ref() {
-        let x = Tensor::<i32>::from(&[1, 2, 3]);
-        assert_eq!(x.as_ref(), &[1, 2, 3]);
-    }
-
-    #[test]
-    fn tensor_display() {
-        let tests = [
-            ("1", &[][..], &[1][..]),
-            ("[1]", &[1], &[1]),
-            ("[1, 2]", &[2], &[1, 2]),
-            ("[[1, 2], [3, 4]]", &[2, 2], &[1, 2, 3, 4]),
-            ("[[[1], [2]], [[3], [4]]]", &[2, 2, 1], &[1, 2, 3, 4]),
-            ("[[[1, 2]], [[3, 4]]]", &[2, 1, 2], &[1, 2, 3, 4]),
-            ("[[[[], []]], [[[], []]]]", &[2, 1, 2, 0], &[]),
-            ("[[], []]", &[2, 0], &[]),
-            ("[[], []]", &[2, 0, 2], &[]),
-            ("[]", &[0], &[]),
-            ("[]", &[0, 0], &[]),
-        ];
-
-        for &(expected, shape, values) in tests.iter() {
-            let tensor = Tensor::<i32>::new(shape).with_values(values).unwrap();
-            assert_eq!(expected, format!("{}", tensor));
-        }
-    }
-
-    #[test]
-    fn tensor_debug() {
-        let values: Vec<i32> = (1..9).collect();
-        let tests = [
-            (
-                "Tensor<i32> { values: [1, 2, 3, 4, 5, 6, 7, 8], dtype: Int32, shape: [8] }",
-                &[8][..],
-                &values,
-            ),
-            (
-                "Tensor<i32> { values: [[1, 2, 3, 4], [5, 6, 7, 8]], dtype: Int32, shape: [2, 4] }",
-                &[2, 4],
-                &values,
-            ),
-            (
-                "Tensor<i32> { values: [[[1, 2], [3, 4]], [[5, 6], [7, 8]]], dtype: Int32, shape: [2, 2, 2] }",
-                &[2, 2, 2],
-                &values,
-            ),
-        ];
-
-        for &(expected, shape, values) in tests.iter() {
-            let tensor = Tensor::<i32>::new(shape).with_values(values).unwrap();
-            assert_eq!(expected, format!("{tensor:?}"));
-        }
-    }
-
-    #[test]
-    fn tensor_debug_scalar() {
-        let tensor = Tensor::from(1);
-        let pretty = "Tensor<i32> {\n    scalar_value: 1,\n    dtype: Int32,\n    shape: []\n}";
-        let standard = "Tensor<i32> { scalar_value: 1, dtype: Int32, shape: [] }";
-        assert_eq!(pretty, format!("{tensor:#?}"));
-        assert_eq!(standard, format!("{tensor:?}"));
-    }
-
-    #[test]
-    fn tensor_debug_zero_elements() {
-        let tensor = Tensor::<f32>::new(&[0, 10]);
-        let pretty = "Tensor<f32> {\n    values: None,\n    dtype: Float,\n    shape: [0, 10]\n}";
-        let standard = "Tensor<f32> { values: None, dtype: Float, shape: [0, 10] }";
-        assert_eq!(pretty, format!("{tensor:#?}"));
-        assert_eq!(standard, format!("{tensor:?}"));
-    }
-
-    #[test]
-    fn tensor_pretty_1_dimension_debug() {
-        let values: Vec<i32> = (1..9).collect();
-        let shape = &[8][..];
-
-        let tensor = Tensor::<i32>::new(shape).with_values(&values).unwrap();
-        let expected = format!(
-            "Tensor<i32> {{
-    values: [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8
-    ],
-    dtype: Int32,
-    shape: {shape:?}\n}}"
-        );
-
-        assert_eq!(expected, format!("{tensor:#?}"));
-    }
-
-    #[test]
-    fn tensor_pretty_str_2_dimension_debug() {
-        let values: Vec<i32> = (1..9).collect();
-        let shape = &[2, 4][..];
-        let tensor = Tensor::<i32>::new(shape).with_values(&values).unwrap();
-
-        let expected = format!(
-            "Tensor<i32> {{
-    values: [
-        [1, 2, 3, 4],
-        [5, 6, 7, 8]
-    ],
-    dtype: Int32,
-    shape: {shape:?}\n}}"
-        );
-        assert_eq!(expected, format!("{tensor:#?}"));
-    }
-
-    #[test]
-    fn tensor_pretty_3_dimension_debug() {
-        let values: Vec<i32> = (1..9).collect();
-        let shape = &[2, 2, 2][..];
-
-        let tensor = Tensor::<i32>::new(shape).with_values(&values).unwrap();
-
-        let expected = format!(
-            "Tensor<i32> {{
-    values: [
-        [[1, 2], [3, 4]],
-        [[5, 6], [7, 8]]
-    ],
-    dtype: Int32,
-    shape: {shape:?}\n}}"
-        );
-        assert_eq!(expected, format!("{tensor:#?}"));
-    }
-
-    #[test]
-    fn tensor_pretty_max_elements_debug() {
-        std::env::set_var("TF_RUST_DISPLAY_MAX", "10");
-        let values: Vec<i32> = (1..21).collect();
-        let shape = &[5, 2, 2][..];
-
-        let tensor = Tensor::<i32>::new(shape).with_values(&values).unwrap();
-
-        let expected = format!(
-            "Tensor<i32> {{
-    values: [
-        [[1, 2], [3, 4]],
-        [[5, 6], [7, 8]],
-        [[9, 10], ...],
-        ...
-    ],
-    dtype: Int32,
-    shape: {shape:?}\n}}"
-        );
-        assert_eq!(expected, format!("{tensor:#?}"));
-    }
-
-    #[test]
-    fn tensor_max_elements_debug() {
-        std::env::set_var("TF_RUST_DISPLAY_MAX", "10");
-        let values: Vec<i32> = (1..51).collect();
-
-        let tensor = Tensor::<i32>::new(&[5, 10]).with_values(&values).unwrap();
-        let expected = "Tensor<i32> { values: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], ...], dtype: Int32, shape: [5, 10] }";
-        assert_eq!(expected, format!("{tensor:?}"));
-
-        let tensor = Tensor::<i32>::new(&[2, 25]).with_values(&values).unwrap();
-        let expected = "Tensor<i32> { values: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ...], ...], dtype: Int32, shape: [2, 25] }";
-        assert_eq!(expected, format!("{tensor:?}"));
-    }
-
-    #[cfg(feature = "ndarray")]
-    macro_rules! ndarray_tests {
-        ($($name:ident: $type:ty, $dim:expr, $values:expr,)*) => {
-            $(
-                #[test]
-                fn $name() {
-                    let tensor = Tensor::<$type>::new(&$dim).with_values(&$values).unwrap();
-                    let dims = Dim($dim);
-                    let array = Array::<$type, _>::from_shape_vec(dims, $values).unwrap();
-
-                    let output_array = Array::from(tensor.clone());
-                    assert_eq!(array, output_array);
-
-                    let output_tensor = Tensor::from(array);
-                    assert_eq!(tensor, output_tensor);
-                }
-            )*
-        }
-    }
-
-    #[cfg(feature = "ndarray")]
-    ndarray_tests! {
-        test_ndarray_0: f64, vec![1], vec![0.0],
-        test_ndarray_1: f32, vec![1, 2], vec![3.1, 4.4],
-        test_ndarray_2: i64, vec![2, 2], vec![3, 20, -1, 4],
-        test_ndarray_3: i32, vec![1, 3], vec![-4, 100, -200],
-        test_ndarray_4: u8, vec![2, 2, 2], vec![1, 1, 2, 2, 3, 3, 4, 4],
-        test_ndarray_5: u16, vec![3, 3], vec![0, 1, 2, 0, 1, 2, 0, 1, 2],
-    }
-
-    #[test]
-    fn test_get_all_registered_kernels() {
-        assert!(get_all_registered_kernels().unwrap().len() > 0);
-    }
-
-    #[test]
-    fn test_get_registered_kernels_for_op() {
-        assert!(get_registered_kernels_for_op("Add").unwrap().len() > 0);
-    }
-
-    #[test]
-    fn test_library_load() {
-        // This test is not yet implemented for Windows
-        let check_path = match std::env::consts::OS {
-            "linux" => Some("test_resources/library/linux/test_op.so"),
-            // TODO: The test op needs to be recompiled for macos.
-            // "macos" => Some("test_resources/library/macos/test_op.so"),
-            _ => None,
-        };
-        if let Some(path) = check_path {
-            let lib = Library::load(path).unwrap();
-            let ops: Vec<OpDef> = lib.op_list().clone().into();
-            assert!(ops.len() == 1);
-            let op = &ops[0];
-            assert!(op.name() == "TestOpList");
-        };
-    }
-
-    #[test]
-    fn shape_from_none() {
-        assert_eq!(Shape::from(None).dims(), None);
-    }
-
-    #[test]
-    fn shape_from_array0() {
-        let array: [i32; 0] = [];
-        assert_eq!(Shape::from(array), Shape::from(&array[..]));
-    }
-
-    #[test]
-    fn shape_from_array1() {
-        assert_eq!(Shape::from([1]), Shape::from(&[1][..]));
-    }
-
-    #[test]
-    fn shape_from_array1_ref() {
-        assert_eq!(Shape::from(&[1]), Shape::from(&[1][..]));
-    }
-
-    #[rustversion::since(1.51)]
-    #[test]
-    fn shape_from_array8() {
-        assert_eq!(
-            Shape::from([1, 2, 3, 4, 5, 6, 7, 8]),
-            Shape::from(&[1, 2, 3, 4, 5, 6, 7, 8][..])
-        );
-    }
-
-    #[rustversion::since(1.51)]
-    #[test]
-    fn shape_from_array8_ref() {
-        assert_eq!(
-            Shape::from(&[1, 2, 3, 4, 5, 6, 7, 8]),
-            Shape::from(&[1, 2, 3, 4, 5, 6, 7, 8][..])
-        );
-    }
-}

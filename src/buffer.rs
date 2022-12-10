@@ -16,10 +16,6 @@ use std::ops::RangeTo;
 use std::os::raw::c_void as std_c_void;
 use std::process;
 use std::slice;
-// BJONES
-// #[cfg(feature = "default")]
-// use tensorflow_sys as tf;
-// #[cfg(feature = "tensorflow_runtime_linking")]
 use tensorflow_sys_runtime as tf;
 
 /// Fixed-length heap-allocated vector.
@@ -389,20 +385,5 @@ impl<T: TensorType> From<Buffer<T>> for Vec<T> {
         let mut vec = Vec::with_capacity(buffer.len());
         vec.extend_from_slice(&buffer);
         vec
-    }
-}
-
-////////////////////////
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn basic() {
-        let mut buf = Buffer::new(10);
-        assert_eq!(buf.len(), 10);
-        buf[0] = 1;
-        assert_eq!(buf[0], 1);
     }
 }

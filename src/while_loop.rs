@@ -9,10 +9,6 @@ use std::os::raw::c_int;
 use std::ptr;
 use std::result;
 use std::slice;
-// BJONES
-// #[cfg(feature = "default")]
-// use tensorflow_sys as tf;
-// #[cfg(feature = "tensorflow_runtime_linking")]
 use tensorflow_sys_runtime as tf;
 
 // This exists purely to ensure TF_AbortWhile gets called properly, even on panic.
@@ -170,90 +166,5 @@ impl<'a> WhileBuilder<'a> {
             .iter()
             .map(|out| Output::from_c(self.graph, out))
             .collect())
-    }
-}
-
-////////////////////////
-
-#[cfg(test)]
-mod tests {
-    use super::super::DataType;
-    use super::super::Operation;
-    use super::super::Session;
-    use super::super::SessionOptions;
-    use super::super::SessionRunArgs;
-    use super::super::Tensor;
-    use super::*;
-
-    fn constant(graph: &mut Graph, name: &str, value: i32) -> Operation {
-        let value = Tensor::<i32>::new(&[]).with_values(&[value]).unwrap();
-        let mut nd = graph.new_operation("Const", name).unwrap();
-        nd.set_attr_type("dtype", DataType::Int32).unwrap();
-        nd.set_attr_tensor("value", value).unwrap();
-        nd.finish().unwrap()
-    }
-
-    fn while_cond(graph: &mut Graph, inputs: &[Output]) -> Result<Output> {
-        let ten = constant(graph, "ten", 10);
-        let counter = inputs[0].clone();
-        let less = {
-            let mut nd = graph.new_operation("Less", "less").unwrap();
-            nd.add_input(counter.operation);
-            nd.add_input(ten);
-            nd.finish().unwrap()
-        };
-        Ok(less.into())
-    }
-
-    fn while_body(graph: &mut Graph, inputs: &[Output]) -> Result<Vec<Output>> {
-        let two = constant(graph, "two", 2);
-        let counter = inputs[0].clone();
-        let mul = {
-            let mut nd = graph.new_operation("Mul", "mul").unwrap();
-            nd.add_input(counter);
-            nd.add_input(two);
-            nd.finish().unwrap()
-        };
-        Ok(vec![mul.into()])
-    }
-
-    #[test]
-    fn simple_while() {
-        let mut main_graph = Graph::new();
-        let one = constant(&mut main_graph, "one", 1);
-        let output = WhileBuilder::new(&mut main_graph, while_cond, while_body, &[one.into()])
-            .unwrap()
-            .name("foo")
-            .unwrap()
-            .finish()
-            .unwrap();
-        assert_eq!(1, output.len());
-        let options = SessionOptions::new();
-        let session = Session::new(&options, &main_graph).unwrap();
-        let mut step = SessionRunArgs::new();
-        let output_token = step.request_fetch(&output[0].operation, 0);
-        session.run(&mut step).unwrap();
-        let output_tensor = step.fetch::<i32>(output_token).unwrap();
-        assert_eq!(&output_tensor[..], &[16i32]);
-    }
-
-    #[test]
-    fn generated_name_while() {
-        // Make sure that TensorFlow doesn't complain about duplicate names
-        let mut main_graph = Graph::new();
-        let one = constant(&mut main_graph, "one", 1);
-        WhileBuilder::new(
-            &mut main_graph,
-            while_cond,
-            while_body,
-            &[one.clone().into()],
-        )
-        .unwrap()
-        .finish()
-        .unwrap();
-        WhileBuilder::new(&mut main_graph, while_cond, while_body, &[one.into()])
-            .unwrap()
-            .finish()
-            .unwrap();
     }
 }
